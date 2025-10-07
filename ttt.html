@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tic-Tac-Toe AI 🤖</title>
+  <style>
+    body {
+      background: #0f0f0f;
+      color: #f5f5f5;
+      font-family: "Poppins", sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      overflow: hidden;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+      color: #00bcd4;
+      letter-spacing: 2px;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      grid-template-rows: repeat(3, 100px);
+      gap: 8px;
+      margin: 20px;
+    }
+
+    .cell {
+      width: 100px;
+      height: 100px;
+      background: #1e1e1e;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      cursor: pointer;
+      transition: all 0.2s;
+      user-select: none;
+    }
+
+    .cell:hover {
+      background: #2a2a2a;
+      transform: scale(1.05);
+    }
+
+    button {
+      background: #00bcd4;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 1em;
+      cursor: pointer;
+      margin-top: 15px;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #0097a7;
+    }
+
+    /* Popup styling */
+    .popup, .start-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      visibility: hidden;
+      opacity: 0;
+      transition: 0.4s ease;
+      z-index: 100;
+    }
+
+    .popup.show, .start-screen.show {
+      visibility: visible;
+      opacity: 1;
+    }
+
+    .popup-box {
+      background: #1f1f1f;
+      border-radius: 16px;
+      padding: 40px 60px;
+      text-align: center;
+      box-shadow: 0 0 25px #00bcd4;
+      animation: pop 0.5s ease forwards;
+    }
+
+    @keyframes pop {
+      0% {
+        transform: scale(0.5);
+        opacity: 0;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    .popup h2 {
+      font-size: 2em;
+      margin-bottom: 10px;
+    }
+
+    .popup.win h2 {
+      color: #4caf50;
+      text-shadow: 0 0 15px #4caf50;
+    }
+
+    .popup.lose h2 {
+      color: #e91e63;
+      text-shadow: 0 0 15px #e91e63;
+    }
+
+    .popup.draw h2 {
+      color: #ffeb3b;
+      text-shadow: 0 0 15px #ffeb3b;
+    }
+
+    .choice-buttons {
+      display: flex;
+      gap: 20px;
+    }
+
+    .choice-buttons button {
+      font-size: 1.5em;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: #00bcd4;
+    }
+
+    .choice-buttons button:hover {
+      background: #0097a7;
+    }
+  </style>
+</head>
+<body>
+  <h1>Tic-Tac-Toe AI 🤖</h1>
+  <div class="board" id="board"></div>
+  <button id="reset">Restart Game</button>
+
+  <!-- Start screen -->
+  <div class="start-screen" id="startScreen">
+    <h2>Choose Your Symbol</h2>
+    <div class="choice-buttons">
+      <button id="chooseX">X</button>
+      <button id="chooseO">O</button>
+    </div>
+  </div>
+
+  <!-- End popup -->
+  <div class="popup" id="popup">
+    <div class="popup-box" id="popupBox">
+      <h2 id="popupText"></h2>
+      <button id="closePopup">Play Again</button>
+    </div>
+  </div>
+
+  <script>
+    const boardEl = document.getElementById("board");
+    const resetBtn = document.getElementById("reset");
+    const popup = document.getElementById("popup");
+    const popupText = document.getElementById("popupText");
+    const closePopup = document.getElementById("closePopup");
+    const startScreen = document.getElementById("startScreen");
+    const chooseX = document.getElementById("chooseX");
+    const chooseO = document.getElementById("chooseO");
+
+    let board = Array(9).fill("");
+    let human = "X";
+    let ai = "O";
+    let gameOver = false;
+
+    const WIN_LINES = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+
+    // Show start screen
+    startScreen.classList.add("show");
+
+    chooseX.onclick = () => {
+      human = "X"; ai = "O";
+      startScreen.classList.remove("show");
+      renderBoard();
+    };
+    chooseO.onclick = () => {
+      human = "O"; ai = "X";
+      startScreen.classList.remove("show");
+      renderBoard();
+      aiTurn(); // AI goes first
+    };
+
+    function renderBoard() {
+      boardEl.innerHTML = "";
+      board.forEach((cell, i) => {
+        const div = document.createElement("div");
+        div.classList.add("cell");
+        div.textContent = cell;
+        div.addEventListener("click", () => makeMove(i));
+        boardEl.appendChild(div);
+      });
+    }
+
+    function checkWinner(bd) {
+      for (const [a,b,c] of WIN_LINES) {
+        if (bd[a] && bd[a] === bd[b] && bd[a] === bd[c]) return bd[a];
+      }
+      return bd.includes("") ? null : "draw";
+    }
+
+    function makeMove(i) {
+      if (gameOver || board[i] !== "") return;
+      board[i] = human;
+      renderBoard();
+      const res = checkWinner(board);
+      if (res) return endGame(res);
+      aiTurn();
+    }
+
+    function aiTurn() {
+      const best = minimax(board, 0, true);
+      board[best.index] = ai;
+      renderBoard();
+      const res = checkWinner(board);
+      if (res) return endGame(res);
+    }
+
+    function minimax(bd, depth, isMaximizing) {
+      const res = checkWinner(bd);
+      if (res === human) return { score: -10 + depth };
+      if (res === ai) return { score: 10 - depth };
+      if (res === "draw") return { score: 0 };
+
+      if (isMaximizing) {
+        let best = { score: -Infinity };
+        for (let i = 0; i < 9; i++) {
+          if (bd[i] === "") {
+            bd[i] = ai;
+            const eval = minimax(bd, depth + 1, false);
+            bd[i] = "";
+            if (eval.score > best.score) best = { score: eval.score, index: i };
+          }
+        }
+        return best;
+      } else {
+        let best = { score: Infinity };
+        for (let i = 0; i < 9; i++) {
+          if (bd[i] === "") {
+            bd[i] = human;
+            const eval = minimax(bd, depth + 1, true);
+            bd[i] = "";
+            if (eval.score < best.score) best = { score: eval.score, index: i };
+          }
+        }
+        return best;
+      }
+    }
+
+    function endGame(result) {
+      gameOver = true;
+      popup.classList.add("show");
+      if (result === "draw") {
+        popup.className = "popup draw show";
+        popupText.textContent = "It's a Draw 😐";
+      } else if (result === human) {
+        popup.className = "popup win show";
+        popupText.textContent = "💥 YOU WIN! 💖";
+      } else {
+        popup.className = "popup lose show";
+        popupText.textContent = "AI WINS 🤖";
+      }
+    }
+
+    closePopup.onclick = resetGame;
+    resetBtn.onclick = resetGame;
+
+    function resetGame() {
+      board = Array(9).fill("");
+      gameOver = false;
+      popup.classList.remove("show");
+      startScreen.classList.add("show");
+    }
+  </script>
+</body>
+</html>
